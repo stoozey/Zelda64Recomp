@@ -3,6 +3,7 @@
 #include "sys_cfb.h"
 #include "z64view.h"
 #include "transform_ids.h"
+#include "vr_patches.h"
 
 extern TransitionOverlay gTransitionOverlayTable[];
 extern Gfx sTransWipe3DL[];
@@ -72,6 +73,13 @@ RECOMP_PATCH void Play_DrawMotionBlur(PlayState* this) {
             sMotionBlurStatus = MOTION_BLUR_SETUP;
         }
     } else {
+        alpha = 0;
+        sMotionBlurStatus = MOTION_BLUR_OFF;
+    }
+
+    // @recomp Motion blur blends the previously rendered image into the current one. In VR each eye is rendered from a
+    // different position, so the previous image belongs to the other eye and the effect causes double vision. Disable it.
+    if (vr_is_active()) {
         alpha = 0;
         sMotionBlurStatus = MOTION_BLUR_OFF;
     }

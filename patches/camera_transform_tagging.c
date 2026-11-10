@@ -1,5 +1,6 @@
 #include "patches.h"
 #include "camera_patches.h"
+#include "vr_patches.h"
 #include "transform_ids.h"
 #include "z64cutscene.h"
 #include "overlays/kaleido_scope/ovl_kaleido_scope/z_kaleido_scope.h"
@@ -239,22 +240,24 @@ RECOMP_PATCH void View_Apply(View* view, s32 mask) {
         interpolate_camera = true;
     }
 
-    // @recomp Tag the camera matrices
+    // @recomp Tag the camera matrices. The main world camera gets its own ID so the renderer knows which projection
+    // receives head tracking when playing in VR. Other views (pause menu, file select) are shown on the HUD panel instead.
+    u32 camera_id = vr_is_world_view(view) ? CAMERA_WORLD_TRANSFORM_ID : CAMERA_TRANSFORM_ID;
     GraphicsContext* gfxCtx = view->gfxCtx;
     OPEN_DISPS(gfxCtx);
 
     if (interpolate_camera) {
         // Simple interpolation works much better for cameras because they orbit around a focus.
-        gEXMatrixGroupSimple(POLY_OPA_DISP++, CAMERA_TRANSFORM_ID, G_EX_NOPUSH, G_MTX_PROJECTION,
+        gEXMatrixGroupSimple(POLY_OPA_DISP++, camera_id, G_EX_NOPUSH, G_MTX_PROJECTION,
             G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE, G_EX_ORDER_LINEAR, G_EX_EDIT_NONE);
-        gEXMatrixGroupSimple(POLY_XLU_DISP++, CAMERA_TRANSFORM_ID, G_EX_NOPUSH, G_MTX_PROJECTION,
+        gEXMatrixGroupSimple(POLY_XLU_DISP++, camera_id, G_EX_NOPUSH, G_MTX_PROJECTION,
             G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE, G_EX_COMPONENT_INTERPOLATE, G_EX_ORDER_LINEAR, G_EX_EDIT_NONE);
     }
     else {
         // Skip interpolation for this frame.
-        gEXMatrixGroupSimple(POLY_OPA_DISP++, CAMERA_TRANSFORM_ID, G_EX_NOPUSH, G_MTX_PROJECTION,
+        gEXMatrixGroupSimple(POLY_OPA_DISP++, camera_id, G_EX_NOPUSH, G_MTX_PROJECTION,
             G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP, G_EX_COMPONENT_INTERPOLATE, G_EX_ORDER_LINEAR, G_EX_EDIT_NONE);
-        gEXMatrixGroupSimple(POLY_XLU_DISP++, CAMERA_TRANSFORM_ID, G_EX_NOPUSH, G_MTX_PROJECTION,
+        gEXMatrixGroupSimple(POLY_XLU_DISP++, camera_id, G_EX_NOPUSH, G_MTX_PROJECTION,
             G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP, G_EX_COMPONENT_SKIP, G_EX_COMPONENT_INTERPOLATE, G_EX_ORDER_LINEAR, G_EX_EDIT_NONE);
     }
 

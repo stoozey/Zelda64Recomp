@@ -1,7 +1,15 @@
 #include "patches.h"
+#include "vr_patches.h"
 
 // Disable frustum culling for actors, but leave distance culling intact
 RECOMP_PATCH s32 func_800BA2FC(PlayState* play, Actor* actor, Vec3f* projectedPos, f32 projectedW) {
+    // @recomp In VR the player can look in any direction, so actors behind the camera must be drawn as well.
+    // Only cull by distance, in both directions.
+    if (vr_is_active()) {
+        f32 maxDistance = actor->uncullZoneForward + actor->uncullZoneScale;
+        return (projectedPos->z > -maxDistance) && (projectedPos->z < maxDistance);
+    }
+
     if ((-actor->uncullZoneScale < projectedPos->z) &&
         (projectedPos->z < (actor->uncullZoneForward + actor->uncullZoneScale))) {
         // f32 phi_f12;
@@ -57,6 +65,11 @@ RECOMP_PATCH s32 func_809A9110(PlayState* play, Vec3f* pos) {
     Vec3f projectedPos;
 
     SkinMatrix_Vec3fMtxFMultXYZW(&play->viewProjectionMtxF, pos, &projectedPos, &w);
+
+    // @recomp Draw grass behind the camera as well in VR.
+    if (vr_is_active()) {
+        return true;
+    }
 
     if ((play->projectionMtxFDiagonal.z * -130.13191f) < projectedPos.z) {
         if (w < 1.0f) {

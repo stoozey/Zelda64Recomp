@@ -1,5 +1,6 @@
 #include "patches.h"
 #include "transform_ids.h"
+#include "vr_patches.h"
 #include "overlays/actors/ovl_Dm_Opstage/z_dm_opstage.h"
 #include "overlays/actors/ovl_Dm_Char01/z_dm_char01.h"
 
@@ -24,7 +25,16 @@ RECOMP_PATCH void Room_Draw(PlayState* play, Room* room, u32 flags) {
 
         CLOSE_DISPS(play->state.gfxCtx);
 
+        // @recomp Cullable rooms skip the pieces of geometry that are behind the camera, which would leave holes in the world
+        // when looking around in VR. Use the path that draws every piece instead.
+        s8 prev_room_draw_mode = play->roomCtx.unk78;
+        if (vr_is_active() && (room->roomShape->base.type == ROOM_SHAPE_TYPE_CULLABLE) && (prev_room_draw_mode > 0)) {
+            play->roomCtx.unk78 = -1;
+        }
+
         sRoomDrawHandlers[room->roomShape->base.type](play, room, flags);
+
+        play->roomCtx.unk78 = prev_room_draw_mode;
         
         OPEN_DISPS(play->state.gfxCtx);
 

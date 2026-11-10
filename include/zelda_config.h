@@ -88,6 +88,28 @@ namespace zelda64 {
     void set_analog_cam_mode(AnalogCamMode mode);
 
     void open_quit_game_prompt();
+
+    // Settings for rendering to a SteamVR headset. Stored in vr.json and read when the renderer starts, so changes
+    // to them require restarting the game.
+    struct VRSettings {
+        // Attempt to render to a SteamVR headset. The game falls back to the regular window if no headset is found.
+        bool enabled = true;
+        // How big the world feels. 1.0 is roughly life size, higher values make the world feel smaller (like a diorama)
+        // and increase both the stereo depth and how far the camera moves when moving your head.
+        float world_scale = 1.0f;
+        // Distance in meters and horizontal size in degrees of the floating panel that shows the HUD, text and menus.
+        float hud_distance = 1.5f;
+        float hud_size = 55.0f;
+        // Remove the game camera's pitch and roll so the horizon always stays level. Can be more comfortable.
+        bool level_horizon = false;
+        // Hide the black bars shown at the top and bottom of the screen during cutscenes.
+        bool hide_letterbox = true;
+        // Multiplier for the resolution recommended by SteamVR.
+        float render_scale = 1.0f;
+    };
+
+    const VRSettings& get_vr_settings();
+    void set_vr_settings(const VRSettings& settings);
 };
 
 #endif

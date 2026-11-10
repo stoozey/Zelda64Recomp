@@ -118,6 +118,14 @@ extern "C" void recomp_high_precision_fb_enabled(uint8_t * rdram, recomp_context
     _return(ctx, static_cast<s32>(zelda64::renderer::RT64HighPrecisionFBEnabled()));
 }
 
+extern "C" void recomp_vr_active(uint8_t* rdram, recomp_context* ctx) {
+    _return(ctx, static_cast<s32>(zelda64::renderer::vr_active()));
+}
+
+extern "C" void recomp_vr_hide_letterbox(uint8_t* rdram, recomp_context* ctx) {
+    _return(ctx, static_cast<s32>(zelda64::get_vr_settings().hide_letterbox));
+}
+
 extern "C" void recomp_get_resolution_scale(uint8_t* rdram, recomp_context* ctx) {
     _return(ctx, ultramodern::get_resolution_scale());
 }

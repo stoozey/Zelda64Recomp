@@ -1,4 +1,5 @@
 #include "patches.h"
+#include "vr_patches.h"
 #include "transform_ids.h"
 #include "buffers.h"
 #include "sys_cfb.h"
@@ -1101,7 +1102,8 @@ RECOMP_PATCH void ShrinkWindow_Draw(GraphicsContext* gfxCtx) {
 
     // @recomp Always draw the letterbox tris so that they the matrices can still be interpolated on the first frame they appear.
     // Avoid drawing it at a specific point in the pausing process.
-    if (R_PAUSE_BG_PRERENDER_STATE != PAUSE_BG_PRERENDER_PROCESS) { //letterboxSize > 0) {
+    // @recomp Letterbox bars would cover the top and bottom of the player's view in VR, so they can be hidden.
+    if ((R_PAUSE_BG_PRERENDER_STATE != PAUSE_BG_PRERENDER_PROCESS) && !vr_hide_letterbox()) { //letterboxSize > 0) {
         OPEN_DISPS(gfxCtx);
 
         gfx = OVERLAY_DISP;

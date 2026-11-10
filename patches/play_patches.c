@@ -1,4 +1,5 @@
 #include "play_patches.h"
+#include "vr_patches.h"
 #include "z64debug_display.h"
 #include "input.h"
 #include "prevent_bss_reordering.h"
@@ -45,6 +46,7 @@ RECOMP_PATCH void Play_Main(GameState* thisx) {
     recomp_on_play_main(this);
 
     // @recomp
+    vr_play_update(this);
     debug_play_update(this);
     controls_play_update(this);
     analog_cam_pre_play_update(this);
@@ -84,7 +86,10 @@ RECOMP_PATCH void Play_Main(GameState* thisx) {
         if (1) {
             *CONTROLLER1(&this->state) = D_801F6C18;
         }
+        // @recomp Mark the play state's view as the world camera while drawing so it receives head tracking in VR.
+        vr_set_world_view(&this->view);
         Play_Draw(this);
+        vr_set_world_view(NULL);
         *CONTROLLER1(&this->state) = input;
     }
 

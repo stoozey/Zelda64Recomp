@@ -49,6 +49,115 @@ if (RECOMP_FLATPAK)
     add_compile_definitions(RECOMP_FLATPAK)
 endif()
 
+# VR support through OpenVR (SteamVR). SteamVR isn't available on macOS, so it's disabled there by default. It's also
+# disabled by default for Flatpak builds, as those are built without network access and OpenVR is downloaded during configuration.
+if (APPLE OR RECOMP_FLATPAK)
+    set(ZELDA64_VR_DEFAULT OFF)
+else()
+    set(ZELDA64_VR_DEFAULT ON)
+endif()
+
+option(ZELDA64_VR "Build with support for SteamVR headsets through OpenVR." ${ZELDA64_VR_DEFAULT})
+
+if (ZELDA64_VR)
+    # Only the few source files needed to build the OpenVR loader are downloaded, as the full repository is very large
+    # (it includes prebuilt binaries and samples). Every file is pinned to a release and verified with its hash.
+    # OpenVR's own CMake project modifies global compiler flags, so the 'openvr_api' library is defined here instead.
+    set(OPENVR_VERSION "v2.5.1")
+    set(OPENVR_URL "https://raw.githubusercontent.com/ValveSoftware/openvr/${OPENVR_VERSION}")
+    set(openvr_SOURCE_DIR "${CMAKE_BINARY_DIR}/_deps/openvr-${OPENVR_VERSION}")
+    set(OPENVR_FILES
+        "LICENSE" f56ff606104d4ef18e617921a75c73ad73b5a1a1d70c69590c29de16919e04ad
+        "headers/openvr.h" 94e5545370159c85f87cd6e15dd3739f7c919fc7a6e869f5e4ed463533a07ed0
+        "src/ivrclientcore.h" 07c8ce981a59fb7cd1dc30572f0c9972d98e6275e95527f0f7a74a18bc0cf846
+        "src/json/json.h" dc678ddb2f21936f7e778a90b4579150dfb198a7d9adff5da0de789297757c71
+        "src/json/json-forwards.h" 74a06407028e0d79735d4199f194f4b83df123153610e521a0305ce25a84e664
+        "src/jsoncpp.cpp" bd8df7509444c8ac9bcc0559e1ae28dfb20f614a14155cdd3807987be224f091
+        "src/openvr_api_public.cpp" fcad852f6b8caba8e4285067ea3f0430f0e5be22ffc42133a8d6bb6b73d9bede
+        "src/vrcore/dirtools_public.cpp" ee39fa2e8739e916edd71566e22b64108c78d6841b09190cd03593960120adca
+        "src/vrcore/dirtools_public.h" d15d3c6e6c7b7fc62f7b46e93fb5214bc8fe7ad6a0dfdbc42cda9890e1735188
+        "src/vrcore/envvartools_public.cpp" 732c976825872e951117c4cea746b553c6455eca924efe47b3de5437b56c7516
+        "src/vrcore/envvartools_public.h" 09fb43f6a56a89ea90c5f48dff971e9326b7e13280d35a3f6a7e9a545aa6e14c
+        "src/vrcore/hmderrors_public.cpp" a3c4f5e23d5c665a41e3d63a8d9ad76949a1f33e203d66eca8129ad8e19e399c
+        "src/vrcore/hmderrors_public.h" 84c01d425383973210978452d0f8873f3eb181bdf04a34a5b26c09bc7821d7ae
+        "src/vrcore/pathtools_public.cpp" 5ef435287b1f4462e13a69e21c654944eeecaeacea9b97cd84f908d4c02598a1
+        "src/vrcore/pathtools_public.h" cc5866a4006efe7b216fd6163a8c1910db0d34747bde8937dd09d15f0ad24d66
+        "src/vrcore/sharedlibtools_public.cpp" 55c1b734352bdd5c81bb24b0550582f352394d95790b78d863fba9aa18fd1ac4
+        "src/vrcore/sharedlibtools_public.h" 28854bffca6a8621c8be2059d206a38f888d5195b7600c5ef1b1266dda73e5ca
+        "src/vrcore/strtools_public.cpp" eb114b4f41b8bc8dfe52a01f74762a71e3ffbb11a8ffd56efdfbcdc2b6f5ad5d
+        "src/vrcore/strtools_public.h" 34a2b9445522008df991cb57c7e9a987f5c0d4ea853cbe745a43842bb71100b5
+        "src/vrcore/vrpathregistry_public.cpp" d7ce9a3ed06176c50df46295d8a09dc8758583dc53f351439bdc7c4b0d9ca839
+        "src/vrcore/vrpathregistry_public.h" 9742a132b1a1287abd8157ef19ad8e022fe0899f6921a25b388ba2ae1e8656b3
+    )
+
+    list(LENGTH OPENVR_FILES OPENVR_FILES_LENGTH)
+    math(EXPR OPENVR_FILES_LAST "${OPENVR_FILES_LENGTH} - 1")
+    foreach(OPENVR_FILE_INDEX RANGE 0 ${OPENVR_FILES_LAST} 2)
+        math(EXPR OPENVR_HASH_INDEX "${OPENVR_FILE_INDEX} + 1")
+        list(GET OPENVR_FILES ${OPENVR_FILE_INDEX} OPENVR_FILE)
+        list(GET OPENVR_FILES ${OPENVR_HASH_INDEX} OPENVR_HASH)
+
+        # The download is skipped if the file already exists and its hash matches.
+        file(DOWNLOAD "${OPENVR_URL}/${OPENVR_FILE}" "${openvr_SOURCE_DIR}/${OPENVR_FILE}"
+            EXPECTED_HASH SHA256=${OPENVR_HASH}
+            TLS_VERIFY ON
+            STATUS OPENVR_DOWNLOAD_STATUS
+        )
+
+        list(GET OPENVR_DOWNLOAD_STATUS 0 OPENVR_DOWNLOAD_CODE)
+        if (NOT OPENVR_DOWNLOAD_CODE EQUAL 0)
+            message(FATAL_ERROR "Failed to download OpenVR file ${OPENVR_FILE}: ${OPENVR_DOWNLOAD_STATUS}. Configure with -DZELDA64_VR=OFF to build without VR support.")
+        endif()
+    endforeach()
+
+    add_library(openvr_api STATIC
+        ${openvr_SOURCE_DIR}/src/openvr_api_public.cpp
+        ${openvr_SOURCE_DIR}/src/jsoncpp.cpp
+        ${openvr_SOURCE_DIR}/src/vrcore/dirtools_public.cpp
+        ${openvr_SOURCE_DIR}/src/vrcore/envvartools_public.cpp
+        ${openvr_SOURCE_DIR}/src/vrcore/pathtools_public.cpp
+        ${openvr_SOURCE_DIR}/src/vrcore/sharedlibtools_public.cpp
+        ${openvr_SOURCE_DIR}/src/vrcore/hmderrors_public.cpp
+        ${openvr_SOURCE_DIR}/src/vrcore/vrpathregistry_public.cpp
+        ${openvr_SOURCE_DIR}/src/vrcore/strtools_public.cpp
+    )
+
+    target_include_directories(openvr_api
+        PUBLIC ${openvr_SOURCE_DIR}/headers
+        PRIVATE ${openvr_SOURCE_DIR}/src ${openvr_SOURCE_DIR}/src/vrcore
+    )
+
+    target_compile_definitions(openvr_api
+        PUBLIC OPENVR_BUILD_STATIC
+        PRIVATE VR_API_PUBLIC VRCORE_NO_PLATFORM
+    )
+
+    # OpenVR's sources rely on <codecvt>, which is deprecated in C++17 and later.
+    set_target_properties(openvr_api PROPERTIES CXX_STANDARD 17)
+
+    if (WIN32)
+        target_compile_definitions(openvr_api PRIVATE WIN64 _CRT_SECURE_NO_WARNINGS _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING)
+    elseif (CMAKE_SYSTEM_NAME MATCHES "Linux")
+        target_compile_definitions(openvr_api PRIVATE LINUX POSIX)
+        if (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
+            target_compile_definitions(openvr_api PRIVATE LINUXARM64)
+        else()
+            target_compile_definitions(openvr_api PRIVATE LINUX64)
+        endif()
+    elseif (APPLE)
+        target_compile_definitions(openvr_api PRIVATE OSX POSIX)
+        set_source_files_properties(
+            ${openvr_SOURCE_DIR}/src/vrcore/pathtools_public.cpp
+            ${openvr_SOURCE_DIR}/src/vrcore/vrpathregistry_public.cpp
+            PROPERTIES COMPILE_FLAGS "-x objective-c++"
+        )
+        target_link_libraries(openvr_api PRIVATE "-framework Foundation")
+    endif()
+
+    target_link_libraries(openvr_api PRIVATE ${CMAKE_DL_LIBS})
+    set(RT64_OPENVR ON)
+endif()
+
 add_subdirectory(${CMAKE_SOURCE_DIR}/lib/rt64 ${CMAKE_BINARY_DIR}/rt64)
 
 # set(BUILD_SHARED_LIBS_SAVED "${BUILD_SHARED_LIBS}")

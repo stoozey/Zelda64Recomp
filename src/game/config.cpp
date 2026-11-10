@@ -20,6 +20,7 @@
 
 constexpr std::u8string_view general_filename = u8"general.json";
 constexpr std::u8string_view graphics_filename = u8"graphics.json";
+constexpr std::u8string_view vr_filename = u8"vr.json";
 constexpr std::u8string_view controls_filename = u8"controls.json";
 constexpr std::u8string_view sound_filename = u8"sound.json";
 
@@ -372,6 +373,50 @@ bool load_graphics_config(const std::filesystem::path& path) {
     return true;
 }
 
+static zelda64::VRSettings vr_settings{};
+
+const zelda64::VRSettings& zelda64::get_vr_settings() {
+    return vr_settings;
+}
+
+void zelda64::set_vr_settings(const zelda64::VRSettings& settings) {
+    vr_settings = settings;
+}
+
+bool save_vr_config(const std::filesystem::path& path) {
+    nlohmann::json config_json{};
+    config_json["enabled"] = vr_settings.enabled;
+    config_json["world_scale"] = vr_settings.world_scale;
+    config_json["hud_distance"] = vr_settings.hud_distance;
+    config_json["hud_size"] = vr_settings.hud_size;
+    config_json["level_horizon"] = vr_settings.level_horizon;
+    config_json["hide_letterbox"] = vr_settings.hide_letterbox;
+    config_json["render_scale"] = vr_settings.render_scale;
+    return save_json_with_backups(path, config_json);
+}
+
+void set_vr_settings_from_json(const nlohmann::json& config_json) {
+    // Missing or invalid keys keep their default values.
+    const zelda64::VRSettings defaults{};
+    vr_settings.enabled = from_or_default(config_json, "enabled", defaults.enabled);
+    vr_settings.world_scale = from_or_default(config_json, "world_scale", defaults.world_scale);
+    vr_settings.hud_distance = from_or_default(config_json, "hud_distance", defaults.hud_distance);
+    vr_settings.hud_size = from_or_default(config_json, "hud_size", defaults.hud_size);
+    vr_settings.level_horizon = from_or_default(config_json, "level_horizon", defaults.level_horizon);
+    vr_settings.hide_letterbox = from_or_default(config_json, "hide_letterbox", defaults.hide_letterbox);
+    vr_settings.render_scale = from_or_default(config_json, "render_scale", defaults.render_scale);
+}
+
+bool load_vr_config(const std::filesystem::path& path) {
+    nlohmann::json config_json{};
+    if (!read_json_with_backups(path, config_json)) {
+        return false;
+    }
+
+    set_vr_settings_from_json(config_json);
+    return true;
+}
+
 void add_input_bindings(nlohmann::json& out, recomp::GameInput input, recomp::InputDevice device) {
     const std::string& input_name = recomp::get_input_enum_name(input);
     nlohmann::json& out_array = out[input_name];
@@ -512,6 +557,14 @@ void zelda64::load_config() {
         zelda64::reset_sound_settings();
         save_sound_config(sound_path);
     }
+
+    std::filesystem::path vr_path = recomp_dir / vr_filename;
+    if (!load_vr_config(vr_path)) {
+        vr_settings = zelda64::VRSettings{};
+    }
+
+    // Always write the file back so newly added settings show up in it.
+    save_vr_config(vr_path);
 }
 
 void zelda64::save_config() {
@@ -529,4 +582,5 @@ void zelda64::save_config() {
     save_graphics_config(recomp_dir / graphics_filename);
     save_controls_config(recomp_dir / controls_filename);
     save_sound_config(recomp_dir / sound_filename);
+    save_vr_config(recomp_dir / vr_filename);
 }

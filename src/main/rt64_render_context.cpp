@@ -1,3 +1,4 @@
+#include <atomic>
 #include <memory>
 #include <cstring>
 #include <variant>
@@ -12,12 +13,28 @@
 #include "ultramodern/config.hpp"
 
 #include "zelda_render.h"
+#include "zelda_config.h"
 #include "recomp_ui.h"
 #include "concurrentqueue.h"
 
 static RT64::UserConfiguration::Antialiasing device_max_msaa = RT64::UserConfiguration::Antialiasing::None;
 static bool sample_positions_supported = false;
 static bool high_precision_fb_enabled = false;
+static std::atomic<bool> vr_active_flag = false;
+static std::atomic<bool> vr_recenter_requested = false;
+
+// Units per meter that correspond to a world scale of 1.0. Picked so Link and the world feel roughly life size.
+constexpr float vr_base_units_per_meter = 35.0f;
+
+void set_application_vr_config(RT64::Application* application, const zelda64::VRSettings& settings) {
+    application->vrConfig.enabled = settings.enabled;
+    application->vrConfig.worldCameraMatrixId = zelda64::renderer::vr_world_camera_matrix_id;
+    application->vrConfig.unitsPerMeter = vr_base_units_per_meter * std::clamp(settings.world_scale, 0.05f, 50.0f);
+    application->vrConfig.hudDistance = std::clamp(settings.hud_distance, 0.1f, 100.0f);
+    application->vrConfig.hudHorizontalFov = std::clamp(settings.hud_size, 10.0f, 150.0f);
+    application->vrConfig.levelHorizon = settings.level_horizon;
+    application->vrConfig.renderScale = std::clamp(settings.render_scale, 0.25f, 4.0f);
+}
 
 static uint8_t DMEM[0x1000];
 static uint8_t IMEM[0x1000];
@@ -262,6 +279,9 @@ zelda64::renderer::RT64Context::RT64Context(uint8_t* rdram, ultramodern::rendere
     // Set initial user config settings based on the current settings.
     auto& cur_config = ultramodern::renderer::get_graphics_config();
     set_application_user_config(app.get(), cur_config);
+
+    // VR must be configured before the application is set up, as it determines how the graphics device is created.
+    set_application_vr_config(app.get(), zelda64::get_vr_settings());
     app->userConfig.developerMode = debug;
     // Force gbi depth branches to prevent LODs from kicking in.
     app->enhancementConfig.f3dex.forceBranch = true;
@@ -314,6 +334,7 @@ zelda64::renderer::RT64Context::RT64Context(uint8_t* rdram, ultramodern::rendere
     }
 
     high_precision_fb_enabled = app->shaderLibrary->usesHDR;
+    vr_active_flag = app->isVRActive();
 }
 
 zelda64::renderer::RT64Context::~RT64Context() = default;
@@ -326,13 +347,27 @@ void zelda64::renderer::RT64Context::send_dl(const OSTask* task) {
 }
 
 void zelda64::renderer::RT64Context::update_screen() {
+    if (vr_recenter_requested.exchange(false)) {
+        app->recenterVR();
+    }
+
+    vr_active_flag = app->isVRActive();
     app->updateScreen();
 }
 
 void zelda64::renderer::RT64Context::shutdown() {
+    vr_active_flag = false;
     if (app != nullptr) {
         app->end();
     }
+}
+
+bool zelda64::renderer::vr_active() {
+    return vr_active_flag;
+}
+
+void zelda64::renderer::request_vr_recenter() {
+    vr_recenter_requested = true;
 }
 
 bool zelda64::renderer::RT64Context::update_config(const ultramodern::renderer::GraphicsConfig& old_config, const ultramodern::renderer::GraphicsConfig& new_config) {

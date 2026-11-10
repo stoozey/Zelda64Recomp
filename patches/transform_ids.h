@@ -4,6 +4,8 @@
 #include "extended_actors.h"
 
 #define CAMERA_TRANSFORM_ID 0x10U
+// Main world camera. RT64 applies the VR head tracking to the projections tagged with this ID.
+#define CAMERA_WORLD_TRANSFORM_ID 0x19U
 #define CIRCLE_OVERLAY_TRANSFORM_ID 0x11U
 #define CIRCLE_OVERLAY_TRANSFORM_PROJECTION_ID 0x12U
 #define TEXTBOX_TRANSFORM_ID 0x13U

@@ -46,6 +46,15 @@ namespace zelda64 {
         bool RT64SamplePositionsSupported();
         bool RT64HighPrecisionFBEnabled();
 
+        // Matrix group ID the patches use to tag the main world camera (CAMERA_WORLD_TRANSFORM_ID in patches/transform_ids.h).
+        constexpr uint32_t vr_world_camera_matrix_id = 0x19;
+
+        // Whether the game is currently being rendered to a VR headset.
+        bool vr_active();
+
+        // Sets the current head position and heading as the new center the game camera is attached to.
+        void request_vr_recenter();
+
         void trigger_texture_pack_update();
         void enable_texture_pack(const recomp::mods::ModContext& context, const recomp::mods::ModHandle& mod);
         void disable_texture_pack(const recomp::mods::ModHandle& mod);

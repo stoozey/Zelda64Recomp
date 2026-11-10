@@ -5,6 +5,7 @@
 #include "recomp.h"
 #include "recomp_input.h"
 #include "zelda_config.h"
+#include "zelda_render.h"
 #include "recomp_ui.h"
 #include "SDL.h"
 #include "promptfont.h"
@@ -116,6 +117,10 @@ bool sdl_event_filter(void* userdata, SDL_Event* event) {
                 keyevent->keysym.scancode == SDL_Scancode::SDL_SCANCODE_F11
             ) {
                 recompui::toggle_fullscreen();
+            }
+            // Recenter the VR view on the current head position.
+            if (keyevent->keysym.scancode == SDL_Scancode::SDL_SCANCODE_F9) {
+                zelda64::renderer::request_vr_recenter();
             }
             if (scanning_device != recomp::InputDevice::COUNT) {
                 if (keyevent->keysym.scancode == SDL_Scancode::SDL_SCANCODE_ESCAPE) {
